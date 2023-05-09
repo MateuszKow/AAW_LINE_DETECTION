@@ -1,0 +1,2 @@
+Zhao, Kai, et al. "Deep hough transform for semantic line detection." IEEE Transactions on Pattern Analysis and Machine Intelligence 44.9 (2021): 4793-4806.
+https://kaizhao.net/nkl
