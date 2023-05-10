@@ -15,10 +15,9 @@ def line_detect(img):
     
     # kopiowanie krawędzi do obrazka wyświetlającego wynik w formacie BGR
     distance_2 = cv2.cvtColor(distance, cv2.COLOR_GRAY2BGR)
-    distance_probabilistic = np.copy(distance_2)
     
     # 
-    lines = cv2.HoughLines(distance, 1, np.pi / 180, 150, None, 0, 0)
+    lines = cv2.HoughLines(distance, 1, np.pi / 180, 288, None, 0, 0)
     
     if lines is not None:
         for i in range(0, len(lines)):
