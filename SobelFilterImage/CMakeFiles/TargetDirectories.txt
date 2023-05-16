@@ -1,0 +1,3 @@
+D:/AGH/semestr_8/AAW/projekt/AAW_LINE_DETECTION/SobelFilterImage/CMakeFiles/SobelFilterImage.dir
+D:/AGH/semestr_8/AAW/projekt/AAW_LINE_DETECTION/SobelFilterImage/CMakeFiles/edit_cache.dir
+D:/AGH/semestr_8/AAW/projekt/AAW_LINE_DETECTION/SobelFilterImage/CMakeFiles/rebuild_cache.dir
