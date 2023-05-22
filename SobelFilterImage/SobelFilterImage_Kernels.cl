@@ -22,13 +22,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
  * Both filters are summed (vector sum) to form the final result.
  */
 
-__constant sampler_t imageSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_LINEAR; 
+__constant sampler_t imageSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_LINEAR; 
 
-__kernel void erode(__read_only image2d_t inputImage, __write_only image2d_t outputImage)
+__kernel void erode(__read_only image2d_t inputImage, __write_only image2d_t outputImage, uint prog_binaryzacji)
 {
 	int2 coord = (int2)(get_global_id(0), get_global_id(1));
-	float prog_binaryzacji = 145.0;
-	bool wynik_erozji = 0;	
 	int size_mask=3;
 	float4 pixel_context = convert_float4(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)));
 	float3 RGB=(float3)(pixel_context.x,pixel_context.y,pixel_context.z);
@@ -50,8 +48,6 @@ __kernel void erode(__read_only image2d_t inputImage, __write_only image2d_t out
 __kernel void erode_diff(__read_only image2d_t inputImage, __write_only image2d_t outputImage)
 {
 	int2 coord = (int2)(get_global_id(0), get_global_id(1));
-	float prog_binaryzacji = 145.0;
-	bool wynik_erozji = 0;	
 	int size_mask=3;
 	float4 pixel_context = convert_float4(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)));
 	float og_pixel = (convert_float4(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)))).y;
@@ -64,4 +60,18 @@ __kernel void erode_diff(__read_only image2d_t inputImage, __write_only image2d_
 		}
 	uint wynik = (uint) og_pixel - 255*(uint) pixel_context_bool ;
 	write_imageui(outputImage, coord, wynik);			
+}
+
+__kernel void hough_transform(__read_only image2d_t inputImage, __write_only image2d_t outputImage, uint theta_resolution){
+	int2 coord = (int2)(get_global_id(0), get_global_id(1));
+	float4 pixel_context = convert_float(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)).x);
+	if (coord.x == 200 && coord.y == 200){
+		if (pixel_context.x == 255){
+			for (int i=-90;i<=90;i=i+theta_resolution){
+				float theta = (float) i;
+				float rho = coord.x*cos(theta) + coord.y*sin(theta);
+				write_imagef(outputImage, (int2)(rho,theta), 1);
+			}
+		}
+	}
 }

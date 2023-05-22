@@ -40,6 +40,19 @@ using namespace appsdk;
 * Class implements OpenCL Sobel Filter sample using Images
 */
 
+
+// class CLCommandArgsHough
+//     : public CLCommandArgs
+// {
+//     public: 
+//         unsigned int binarize_threshold;
+//         CLCommandArgsHough() : CLCommandArgs() 
+//         { 
+//             binarize_threshold = 128;
+//         }
+// };
+
+
 class SobelFilterImage
 {
         cl_double setupTime;                /**< time taken to setup OpenCL resources and building kernel */
@@ -55,9 +68,11 @@ class SobelFilterImage
         cl::Image2D erodeImage2D;                           /**< CL Input image2d */
         cl::Image2D outputImage2D;                      /**< CL Output image2d */
         cl::CommandQueue commandQueue;                  /**< CL command queue */
-        cl::Program program;                            /**< CL program  */
+        cl::Program program;
+        // std::vector<cl_float>;                            /**< CL program  */
         cl::Kernel kernel;
-        cl::Kernel kernel2;                                /**< CL kernel */
+        cl::Kernel kernel2;
+        cl::Kernel hough;                                /**< CL kernel */
 
         cl_uchar* verificationOutput;       /**< Output array for reference implementation */
 
@@ -66,9 +81,14 @@ class SobelFilterImage
         cl_uint pixelSize;                  /**< Size of a pixel in BMP format> */
         cl_uint width;                      /**< Width of image */
         cl_uint height;                     /**< Height of image */
+        
+        cl_uint binarize_threshold;         /**< Binarization threshold value */                     
+        cl_uint theta_resolution;         /**< Resolution of theta */
+
         cl_bool byteRWSupport;
         size_t kernelWorkGroupSize;
-        size_t kernel2WorkGroupSize;          /**< Group Size returned by kernel */
+        size_t kernel2WorkGroupSize;   
+        size_t houghWorkGroupSize;       /**< Group Size returned by kernel */
         size_t blockSizeX;                  /**< Work-group size in x-direction */
         size_t blockSizeY;                  /**< Work-group size in y-direction */
         int iterations;                     /**< Number of iterations for kernel execution */

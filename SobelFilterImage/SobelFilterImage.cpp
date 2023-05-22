@@ -14,7 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ********************************************************************/
 
-
+#include <opencv2/imgproc.hpp>
 #include "SobelFilterImage.hpp"
 #include <cmath>
 
@@ -332,6 +332,8 @@ SobelFilterImage::setupCL()
     CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
     kernel2 = cl::Kernel(program, "erode_diff",  &err);
     CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
+    hough = cl::Kernel(program, "hough_transform",  &err);
+    CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
 
     // Check group size against group size returned by kernel
     kernelWorkGroupSize = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>
@@ -339,6 +341,10 @@ SobelFilterImage::setupCL()
     CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
 
     kernel2WorkGroupSize = kernel2.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>
+                          (devices[sampleArgs->deviceId], &err);
+    CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
+
+    houghWorkGroupSize = hough.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>
                           (devices[sampleArgs->deviceId], &err);
     CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
 
@@ -379,6 +385,26 @@ SobelFilterImage::setupCL()
             blockSizeY = 1;
         }
     }
+
+    if((blockSizeX * blockSizeY) > houghWorkGroupSize)
+    {
+        if(!sampleArgs->quiet)
+        {
+            std::cout << "Out of Resources!" << std::endl;
+            std::cout << "Group Size specified : "
+                      << blockSizeX * blockSizeY << std::endl;
+            std::cout << "Max Group Size supported on the kernel : "
+                      << houghWorkGroupSize << std::endl;
+            std::cout << "Falling back to " << houghWorkGroupSize << std::endl;
+        }
+
+        if(blockSizeX > houghWorkGroupSize)
+        {
+            blockSizeX = houghWorkGroupSize;
+            blockSizeY = 1;
+        }
+    }
+
 
     return SDK_SUCCESS;
 }
@@ -425,7 +451,7 @@ SobelFilterImage::runCLKernels()
                            "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
 
     }
-
+    binarize_threshold = 100;
     // Set appropriate arguments to the kernel
     // input buffer image
     status = kernel.setArg(0, inputImage2D);
@@ -433,13 +459,28 @@ SobelFilterImage::runCLKernels()
 
     // outBuffer imager
     status = kernel.setArg(1, erodeImage2D);
-    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (outputImageBuffer)");
+
+    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (erodeImage2D)");
+
+    status = kernel.setArg(2, binarize_threshold);
+    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (binarize_threshold)");
 
     status = kernel2.setArg(0, erodeImage2D);
-    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (inputImageBuffer)");
+    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (erodeImage2D)");
 
     status = kernel2.setArg(1, outputImage2D);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (outputImageBuffer)");
+
+    theta_resolution = 1;
+
+    status = hough.setArg(0, outputImage2D);
+    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (inputImageBuffer)");
+
+    status = hough.setArg(1, outputImage2D);
+    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (inputImageBuffer)");
+
+    status = hough.setArg(2, theta_resolution);
+    CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (theta_resolution)");
 
     /*
     * Enqueue a kernel run call.
@@ -487,6 +528,29 @@ SobelFilterImage::runCLKernels()
     while(eventStatus != CL_COMPLETE)
     {
         status = ndrEvt2.getInfo<cl_int>(
+                     CL_EVENT_COMMAND_EXECUTION_STATUS,
+                     &eventStatus);
+        CHECK_OPENCL_ERROR(status,
+                           "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
+    }
+
+    cl::Event ndrEvt3;
+    status = commandQueue.enqueueNDRangeKernel(
+                 hough,
+                 cl::NullRange,
+                 globalThreads,
+                 localThreads,
+                 0,
+                 &ndrEvt3);
+    CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueNDRangeKernel() failed.");
+
+    status = commandQueue.flush();
+    CHECK_OPENCL_ERROR(status, "cl::CommandQueue.flush failed.");
+
+    eventStatus = CL_QUEUED;
+    while(eventStatus != CL_COMPLETE)
+    {
+        status = ndrEvt3.getInfo<cl_int>(
                      CL_EVENT_COMMAND_EXECUTION_STATUS,
                      &eventStatus);
         CHECK_OPENCL_ERROR(status,
