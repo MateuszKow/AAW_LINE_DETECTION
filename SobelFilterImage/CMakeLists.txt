@@ -19,10 +19,8 @@ set( SAMPLE_NAME SobelFilterImage )
 set( SOURCE_FILES SobelFilterImage.cpp )
 set( EXTRA_FILES SobelFilterImage_Kernels.cl SobelFilterImage_Input.bmp )
 
-############################################################################
-
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
-cmake_minimum_required( VERSION 2.6.0 )
+cmake_minimum_required( VERSION 2.8.0 )
 project( ${SAMPLE_NAME} )
 
 if(CMAKE_BUILD_TYPE MATCHES "[Tt][Bb][Bb]")
@@ -65,17 +63,17 @@ if( NOT UNIX )
 else()
 	set(PLATFORM lnx)
 endif()
-############################################################################
+#############################################################################
 # Find OpenCL include and libs
 find_path( OPENCL_INCLUDE_DIRS 
     NAMES OpenCL/cl.h CL/cl.h
-    HINTS ../../../../include/ $ENV{AMDAPPSDKROOT}/include/
+    HINTS ../../../include/ $ENV{AMDAPPSDKROOT}/include/
 )
 mark_as_advanced(OPENCL_INCLUDE_DIRS)
 
 find_library( OPENCL_LIBRARIES
 	NAMES OpenCL
-	HINTS ../../../../lib/ $ENV{AMDAPPSDKROOT}/lib
+	HINTS ../../../lib/ $ENV{AMDAPPSDKROOT}/lib/
 	PATH_SUFFIXES ${PLATFORM}${BITNESS} ${BITNESS_SUFFIX}
 )
 mark_as_advanced( OPENCL_LIBRARIES )
@@ -85,12 +83,151 @@ if( OPENCL_INCLUDE_DIRS STREQUAL "" OR OPENCL_LIBRARIES STREQUAL "")
 endif( )
 
 ############################################################################
+# Find OpenCV include and libs
+set( OpenCV_DIR $ENV{OPENCV_DIR} )
+
+if( NOT EXISTS "${OpenCV_DIR}")
+message (FATAL_ERROR "Please specify OpenCV directory using OPENCV_DIR env. variable  " )
+endif()
+
+if ( NOT MSVC )
+    set (OpenCV_DIR_LIB  "${OpenCV_DIR}/bin" )
+    set (OpenCV_DIR_LIB  "${OpenCV_DIR}/lib" )
+else()
+	if ( BITNESS EQUAL 32)
+		set (OpenCV_DIR_LIB  "${OpenCV_DIR}/x86/" )
+	else()
+	    set (OpenCV_DIR_LIB  "${OpenCV_DIR}/x64/" )
+	endif()
+		
+    if ( MSVC_VERSION EQUAL 1600)
+		set (OpenCV_DIR_LIB  "${OpenCV_DIR_LIB}/vc10/lib" )
+	elseif ( MSVC_VERSION EQUAL 1700)
+		set (OpenCV_DIR_LIB  "${OpenCV_DIR_LIB}/vc11/lib" )
+	elseif ( MSVC_VERSION EQUAL 1800)
+		set (OpenCV_DIR_LIB  "${OpenCV_DIR_LIB}/vc12/lib" )
+	endif ()	    
+endif()
+
+# find_path(OpenCV_INCLUDE_DIRS1 "cv.h"
+#           PATHS "${OpenCV_DIR}"
+#           PATH_SUFFIXES "include" "include/opencv2"
+# 		 )
+		  
+# mark_as_advanced(OpenCV_INCLUDE_DIRS1)
+
+find_path(OpenCV_INCLUDE_DIRS1 "videoio.hpp"
+          PATHS "${OpenCV_DIR}"
+          PATH_SUFFIXES "include" "include/opencv2" "include/opencv2/videoio"
+		 )
+		  
+mark_as_advanced(OpenCV_INCLUDE_DIRS1)
+
+find_path(OpenCV_INCLUDE_DIRS2 "core.hpp"
+          PATHS "${OpenCV_DIR}"
+          PATH_SUFFIXES "include" "include/opencv2/" "include/opencv2/core"
+		 )
+		  
+mark_as_advanced(OpenCV_INCLUDE_DIRS2)
+
+find_path(OpenCV_INCLUDE_DIRS3 "opencv2"
+          PATHS "${OpenCV_DIR}/include"
+         )
+ 
+mark_as_advanced(OpenCV_INCLUDE_DIRS3)
+
+find_path(OpenCV_INCLUDE_DIRS4 "opencv.hpp"
+          PATHS "${OpenCV_DIR}"
+          PATH_SUFFIXES "include" "include/opencv2/" "include/opencv2/core"
+		 )
+		  
+mark_as_advanced(OpenCV_INCLUDE_DIRS4)
+
+#####moje
+find_path(OpenCV_INCLUDE_DIRS5 "imgcodecs.hpp"
+          PATHS "${OpenCV_DIR}"
+          PATH_SUFFIXES "include" "include/opencv2/" "include/opencv2/imgcodecs"
+		 )
+		  
+mark_as_advanced(OpenCV_INCLUDE_DIRS5)
+######
+        
+set(OpenCV_INCLUDE_DIRS ${OpenCV_INCLUDE_DIRS1} ${OpenCV_INCLUDE_DIRS2} ${OpenCV_INCLUDE_DIRS3} ${OpenCV_INCLUDE_DIRS4} ${OpenCV_INCLUDE_DIRS5})
+# set(OpenCV_INCLUDE_DIRS ${OpenCV_INCLUDE_DIRS2} ${OpenCV_INCLUDE_DIRS3} ${OpenCV_INCLUDE_DIRS4})
+
+if( OpenCV_INCLUDE_DIRS STREQUAL "")
+	message( FATAL_ERROR "Could not locate OpenCV include " )
+endif()
+	
+#Finding OpenCV lib component 
+# set(OpenCV_LIB_COMPONENTS opencv_core opencv_imgproc opencv_calib3d opencv_video opencv_features2d opencv_ml opencv_highgui opencv_objdetect opencv_contrib opencv_legacy opencv_ocl)
+set(OpenCV_LIB_COMPONENTS opencv_core opencv_imgproc opencv_calib3d opencv_video opencv_features2d opencv_ml opencv_highgui opencv_objdetect libopencv_videoio opencv_imgcodecs)
+# set(CVLIB_SUFFIX $ENV{OCVCL_VER}) 
+set(CVLIB_SUFFIX "455")   
+set(GLOBAL OpenCV_LIBS "")
+set(OpenCV_FOUND_TMP true)
+
+
+		
+ ## Loop over each components
+foreach(__CVLIB ${OpenCV_LIB_COMPONENTS})
+
+    find_library(OpenCV_${__CVLIB}_LIBRARY_DEBUG NAMES "${__CVLIB}${CVLIB_SUFFIX}d" "lib${__CVLIB}${CVLIB_SUFFIX}d" "${__CVLIB}d" PATHS "${OpenCV_DIR_LIB}" NO_DEFAULT_PATH)
+    find_library(OpenCV_${__CVLIB}_LIBRARY_RELEASE NAMES "${__CVLIB}${CVLIB_SUFFIX}" "lib${__CVLIB}${CVLIB_SUFFIX}" "${__CVLIB}" PATHS "${OpenCV_DIR_LIB}" NO_DEFAULT_PATH)
+    mark_as_advanced( OpenCV_${__CVLIB}_LIBRARY_DEBUG NAMES OpenCV_${__CVLIB}_LIBRARY_RELEASE)
+
+    # message(STATUS "__CVLIB = ${__CVLIB}, full_name with suffix = ${__CVLIB}${CVLIB_SUFFIX}d, debug lib = ${OpenCV_${__CVLIB}_LIBRARY_DEBUG}, release lib = ${OpenCV_${__CVLIB}_LIBRARY_RELEASE}")
+    # Remove the cache value
+    set(OpenCV_${__CVLIB}_LIBRARY "" )
+
+    # Both debug/release
+    if(OpenCV_${__CVLIB}_LIBRARY_DEBUG AND OpenCV_${__CVLIB}_LIBRARY_RELEASE)
+        set(OpenCV_${__CVLIB}_LIBRARY debug ${OpenCV_${__CVLIB}_LIBRARY_DEBUG} optimized ${OpenCV_${__CVLIB}_LIBRARY_RELEASE} )
+        
+	# only debug
+    elseif(OpenCV_${__CVLIB}_LIBRARY_DEBUG)
+        set(OpenCV_${__CVLIB}_LIBRARY ${OpenCV_${__CVLIB}_LIBRARY_DEBUG} )
+    
+	# only release
+    elseif(OpenCV_${__CVLIB}_LIBRARY_RELEASE)
+        set(OpenCV_${__CVLIB}_LIBRARY ${OpenCV_${__CVLIB}_LIBRARY_RELEASE} )
+	# no library found
+    else( )
+        
+        set(OpenCV_FOUND_TMP false)
+        message( FATAL_ERROR "Could not locate OpenCV libs  ${__CVLIB}" )
+    endif( )
+
+	# Add to the general list
+	if(OpenCV_${__CVLIB}_LIBRARY)
+        set(OpenCV_LIBS ${OpenCV_LIBS} ${OpenCV_${__CVLIB}_LIBRARY})
+    endif( )
+	
+endforeach( )
+        
+set(OpenCV_FOUND ${OpenCV_FOUND_TMP} )
+
+    
+# Search for ocl in OpenCV_LIB_COMPONENTS
+# list(FIND OpenCV_LIB_COMPONENTS opencv_ocl CONTAINS_OCL)
+# if( ${CONTAINS_OCL} EQUAL -1 )
+#     message(FATAL_ERROR "opencv_ocl component is missing. Please enable ocl and build opencv again ")
+#     set(OpenCV_FOUND false)
+# endif( )
+
+if(NOT OpenCV_FOUND)
+    message( FATAL_ERROR "Could not locate OpenCV libs " )
+endif(NOT OpenCV_FOUND)
+
+############################################################################
 # Tweaks for cygwin makefile to work with windows-style path
 
 if( CYGWIN )
     set( PATHS_TO_CONVERT
            OPENCL_INCLUDE_DIRS
            OPENCL_LIBRARIES
+           OpenCV_INCLUDE_DIRS
+           OpenCV_LIBS
        )
        
     foreach( pathVar ${PATHS_TO_CONVERT} )
@@ -108,9 +245,10 @@ set( LINKER_FLAGS " " )
 set( ADDITIONAL_LIBRARIES "" )
 
 file(GLOB INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.h" )
-include_directories( ${OPENCL_INCLUDE_DIRS} ../../../../include/SDKUtil $ENV{AMDAPPSDKROOT}/include/SDKUtil )
+include_directories( ${OPENCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ../../../include/SDKUtil $ENV{AMDAPPSDKROOT}/include/SDKUtil)
+# include_directories( ${OPENCL_INCLUDE_DIRS}  ../../../include/SDKUtil $ENV{AMDAPPSDKROOT}/include/SDKUtil)
 
-add_executable( ${SAMPLE_NAME} ${SOURCE_FILES} ${INCLUDE_FILES} ${EXTRA_FILES})
+add_executable( ${SAMPLE_NAME} ${SOURCE_FILES} ${INCLUDE_FILES} )
 
 # gcc/g++ specific compile options
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
@@ -118,9 +256,6 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     
     # Note: "rt" is not present on mingw
     if( UNIX )
-		if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-			set( COMPILER_FLAGS " -g " )
-		endif( )
         set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} "rt" )
     endif( )
     
@@ -135,7 +270,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_GXX} " )
     set( LINKER_FLAGS "${LINKER_FLAGS} ${EXTRA_LINKER_FLAGS_GXX} " )
     set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} ${EXTRA_LIBRARIES_GXX} )
-elseif( MSVC )
+elseif( MSVC )  
     # Samples can specify additional libs/flags using EXTRA* defines
 	add_definitions( "/W3 /D_CRT_SECURE_NO_WARNINGS /wd4005 /wd4996 /nologo" )
 
@@ -148,7 +283,7 @@ set_target_properties( ${SAMPLE_NAME} PROPERTIES
                         COMPILE_FLAGS ${COMPILER_FLAGS}
                         LINK_FLAGS ${LINKER_FLAGS}
                      )
-target_link_libraries( ${SAMPLE_NAME} ${OPENCL_LIBRARIES} ${ADDITIONAL_LIBRARIES} )
+target_link_libraries( ${SAMPLE_NAME} ${OPENCL_LIBRARIES} ${OpenCV_LIBS} ${ADDITIONAL_LIBRARIES} )
 
 # Set output directory to bin
 if( MSVC )

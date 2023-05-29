@@ -25,6 +25,16 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <string.h>
 #include "CLUtil.hpp"
 #include "SDKBitMap.hpp"
+#include <opencv2/highgui.hpp>
+#include <cmath>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/videoio.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <iostream>
+#include <cstdlib>
+
+
 
 #define SAMPLE_VERSION "AMD-APP-SDK-v2.9-1.599.1"
 
@@ -59,6 +69,12 @@ class SobelFilterImage
         cl_double kernelTime;               /**< time taken to run kernel and read result back */
         cl_uchar4* inputImageData;          /**< Input bitmap data to device */
         cl_uchar4* outputImageData;         /**< Output from device */
+        
+        cv::VideoCapture cap;
+        cv::Mat frame;
+        int deviceID;
+        int apiID;
+        cv::Mat imageMat;        
 
         cl::Context context;                            /**< CL context */
         std::vector<cl::Device> devices;                /**< CL device list */
@@ -66,13 +82,27 @@ class SobelFilterImage
         std::vector<cl::Platform> platforms;            /**< list of platforms */
         cl::Image2D inputImage2D;
         cl::Image2D erodeImage2D;                           /**< CL Input image2d */
-        cl::Image2D outputImage2D;                      /**< CL Output image2d */
+        cl::Image2D outputImage2D;
+        cl::Image2D sinusoid;
+        cl::Image3D outputImage3D;                       /**< CL Output image2d */
+        cl::Image2D acum_2D;
+        cl::Buffer outputBuffer_rho;
+        cl::Buffer rho_buffer;
+        cl::Buffer to_display_buffer_in;
+        cl::Buffer to_display_buffer_out;
+        cl::Buffer out_acumulator;
+        
         cl::CommandQueue commandQueue;                  /**< CL command queue */
         cl::Program program;
         // std::vector<cl_float>;                            /**< CL program  */
         cl::Kernel kernel;
         cl::Kernel kernel2;
-        cl::Kernel hough;                                /**< CL kernel */
+        cl::Kernel hough;
+        cl::Kernel hough_buffer;
+        cl::Kernel to_display;
+        cl::Kernel hough_image3D;
+        cl::Kernel accumulator_kernel;
+        unsigned int bufferSize;                                   /**< CL kernel */
 
         cl_uchar* verificationOutput;       /**< Output array for reference implementation */
 
@@ -80,25 +110,34 @@ class SobelFilterImage
         uchar4* pixelData;       /**< Pointer to image data */
         cl_uint pixelSize;                  /**< Size of a pixel in BMP format> */
         cl_uint width;                      /**< Width of image */
-        cl_uint height;                     /**< Height of image */
+        cl_uint height;                      /**< Width of image */
+        cl_uint width_accumulator;
+        cl_uint height_accumulator;                          /**< Height of image */
         
         cl_uint binarize_threshold;         /**< Binarization threshold value */                     
-        cl_uint theta_resolution;         /**< Resolution of theta */
+        cl_uint theta_resolution; 
+        cl_uint threshold;         /**< Resolution of theta */
 
         cl_bool byteRWSupport;
         size_t kernelWorkGroupSize;
         size_t kernel2WorkGroupSize;   
-        size_t houghWorkGroupSize;       /**< Group Size returned by kernel */
+        size_t houghWorkGroupSize;
+        size_t hough_image3DWorkGroupSize;
+        size_t accumulator_kernelWorkGroupSize;
+        size_t to_displayGroupSize;       /**< Group Size returned by kernel */
+        size_t hough_bufferWorkGroupSize;
         size_t blockSizeX;                  /**< Work-group size in x-direction */
         size_t blockSizeY;                  /**< Work-group size in y-direction */
         int iterations;                     /**< Number of iterations for kernel execution */
         int imageSupport;
+        int* to_display_table;
 
         SDKTimer    *sampleTimer;      /**< SDKTimer object */
 
     public:
 
         CLCommandArgs   *sampleArgs;   /**< CLCommand argument class */
+        int camera;
 
         /**
         * Read bitmap image and allocate host memory
@@ -213,6 +252,13 @@ class SobelFilterImage
         * @return SDK_SUCCESS on success and SDK_FAILURE on failure
         */
         int verifyResults();
+
+        // 
+        // 
+        int initialize_camera();
+        int read_camera();
+        int convert_frame_to_image();
+        int camera_show();
 };
 
 #endif // SOBEL_FILTER_IMAGE_H_

@@ -22,6 +22,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
  * Both filters are summed (vector sum) to form the final result.
  */
 
+
 __constant sampler_t imageSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_LINEAR; 
 
 __kernel void erode(__read_only image2d_t inputImage, __write_only image2d_t outputImage, uint prog_binaryzacji)
@@ -59,19 +60,159 @@ __kernel void erode_diff(__read_only image2d_t inputImage, __write_only image2d_
 			}
 		}
 	uint wynik = (uint) og_pixel - 255*(uint) pixel_context_bool ;
-	write_imageui(outputImage, coord, wynik);			
+	write_imageui(outputImage, coord, wynik);
+	// uint wynik = 0 ;
+	// if (coord.x == 156 &&	coord.y == 22){
+	// 	printf("coord.x: %d, coord.y: %d \n",coord.x,coord.y);
+		
+	// 	printf("coord.x: %d, coord.y: %d \n",coord.x,coord.y);
+	// 	write_imageui(outputImage, coord, convert_uint4((float4)(255,0,0,0)));
+	// }
+	// else{
+	// 	write_imageui(outputImage, coord, wynik);
+	// }
+	
+			
 }
 
 __kernel void hough_transform(__read_only image2d_t inputImage, __write_only image2d_t outputImage, uint theta_resolution){
 	int2 coord = (int2)(get_global_id(0), get_global_id(1));
-	float4 pixel_context = convert_float(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)).x);
-	if (coord.x == 200 && coord.y == 200){
-		if (pixel_context.x == 255){
-			for (int i=-90;i<=90;i=i+theta_resolution){
-				float theta = (float) i;
-				float rho = coord.x*cos(theta) + coord.y*sin(theta);
-				write_imagef(outputImage, (int2)(rho,theta), 1);
+	float PI = 3.14159265358979323846;
+	float4 pixel_value = convert_float(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)).x);
+	// if (coord.x >= 180 && coord.x <= 210 && coord.y >= 180 && coord.y <= 210){
+		if (pixel_value.x == 255){
+			for (int theta=-90;theta<90;theta=theta+theta_resolution){
+				float rho = coord.x*cos((float)theta*PI/180) + coord.y*sin((float)theta*PI/180);
+				float4 neg_pixel = (float4)(255,0,0,0);
+				// printf("theta: %d, rho: %f\n",theta,rho);
+				int rho_display = (int)rho + 200;
+				int theta_display = (int)theta + 90;
+				// printf("theta: %d, rho: %d \n",theta_display,rho_display);
+				write_imageui(outputImage, (int2)(theta_display,rho_display), convert_uint4(neg_pixel));
 			}
 		}
+		else{
+			;
+		}
+	// }
+}
+
+__kernel void hough_transform_buffer(__read_only image2d_t inputImage,  __global int* out, uint theta_resolution, uint width, uint height){
+	int2 coord = (int2)(get_global_id(0), get_global_id(1));
+	float PI = 3.14159265358979323846;
+	float4 pixel_value = convert_float(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)).x);
+	// printf("pixel_value: %f\n",pixel_value.x);
+	// if (coord.x >= 180 && coord.x <= 210 && coord.y >= 180 && coord.y <= 210){
+	// if ((coord.x == 200 && coord.y == 200)||(coord.x == 201 && coord.y == 200)){
+	coord.y= abs(height/2-coord.y)+height/2-1;	
+		if (pixel_value.x == 255.0f){
+			// printf("coord.x: %d, coord.y: %d \n",coord.x,coord.y);
+			// if (coord.x == 155 && coord.y == 123){
+			// 	printf("coord.x: %d, coord.y: %d \n",coord.x,coord.y);
+			// }
+			for (int theta=-90;theta<90;theta=theta+theta_resolution){
+				int rho = (int)round(coord.x*cos((float)theta *PI/180) + coord.y*sin((float)theta *PI/180)) + (height+width);
+				// printf("theta: %d, rho: %d \n",theta,rho);
+				// printf("%d\n",rho);
+				// printf("theta: %d, rho: %d, index: %d \n",theta,rho ,(theta + 90) + coord.x*180 + coord.y * 180 * width);
+				out[(theta + 90) + coord.x*180 + coord.y * 180 * width ] = rho;
+				// if (coord.x == 155 && coord.y == 123)	{
+				// printf("theta: %d, rho: %d",theta,rho);
+				// }
+				
+			}
+		}
+
+		else{
+			for (int theta=-90;theta<90;theta=theta+theta_resolution){
+				// printf("theta: %d, rho: %d, index: %d \n",theta,5000 ,(theta + 90) + coord.x*180 + coord.y * 180 * width);
+				out[(theta + 90) + coord.x*180 + coord.y * 180 * width]  = 5000;
+				}
+		}
+	// }
+}
+
+// __kernel void hough_transform_image3D(__read_only image2d_t inputImage,  __write_only image3d_t outputImage, uint theta_resolution){
+// 	int3 coord = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
+// 	float PI = 3.14159265358979323846;
+// 	float4 pixel_value = convert_float(read_imageui(inputImage, imageSampler, (int2)(coord.x, coord.y)).x);
+// 	// // if (coord.x >= 180 && coord.x <= 210 && coord.y >= 180 && coord.y <= 210){
+// 	// // if ((coord.x == 200 && coord.y == 200)||(coord.x == 201 && coord.y == 200)){
+// 	// 	if (pixel_value.x == 255.0f){
+// 	// 		// printf("coord.x: %d, coord.y: %d \n",coord.x,coord.y);
+// 	// 		int rho = (int)round(coord.x*cos((float)1 *PI/180) + coord.y*sin((float)1 *PI/180));
+// 	// 		write_imagef(outputImage, (int4)(coord.x, coord.y, 1,0), convert_float(rho));
+// 	// 		// for (int theta=-90;theta<=90;theta=theta+theta_resolution){
+// 	// 		// 	int rho = (int)round(coord.x*cos((float)theta *PI/180) + coord.y*sin((float)theta *PI/180));
+// 	// 			// printf("theta: %d, rho: %d \n",theta,rho);
+// 	// 			// printf("%d\n",rho);
+// 	// 			// printf("theta: %d, rho: %d, index: %d \n",theta,rho ,(theta + 90) + coord.x*180 + coord.y * 180 * width);
+// 	// 			// out[(theta + 90) + coord.x*180 + coord.y * 180 * width ] = rho;
+// 	// 			// write_imagef(outputImage, (int4)(coord.x, coord.y, theta + 90,0), convert_float(rho));
+// 	// 		// }
+// 	// 	}
+// 	// 	else{
+// 	// 		write_imagef(outputImage, (int4)(coord.x, coord.y, 1,0), convert_float(5000));
+// 	// 		// for (int theta=-90;theta<=90;theta=theta+theta_resolution){
+// 	// 			// printf("theta: %d, rho: %d, index: %d \n",theta,5000 ,(theta + 90) + coord.x*180 + coord.y * 180 * width);
+// 	// 			// out[(theta + 90) + coord.x*180 + coord.y * 180 * width]  = 5000;
+// 	// 			// write_imagef(outputImage, (int4)(coord.x, coord.y, theta + 90,0), convert_float(5000));
+// 	// 			// }
+// 	// 	}
+// 	// }
+// }
+
+
+// __kernel void accumulator(__read_only image3d_t inputImage, __global int* out){
+// 	int3 coord = (int3)(get_global_id(0), get_global_id(1),get_global_id(2));
+// 	int rho = (int)read_imagef(inputImage, imageSampler, (int4)(coord.x, coord.y, coord.z,0)).x;
+// 	int2 cord_out = (int2)(coord.z, rho);
+// 	atomic_inc(&out[coord.z + rho*180]);
+// 	// write_imagef(outputImage, cord_out, convert_float4((float4)(255,0,0,0)));
+// }
+
+__kernel void accumulator(__global int* in, __global int* out){
+	// (theta + 90) + coord.x*180 + coord.y * 180 * width 
+	int pos = get_global_id(0);
+	int theta = pos % 180;
+	int rho = in[pos];
+		// printf("theta: %d, rho: %d, index: %d, wartosc przed inkremenetacja %d \n",theta,rho ,pos, out[theta + rho*180]);
+	if (rho != 5000){
+		// printf("theta: %d, rho: %d, index: %d, wartosc przed inkremenetacja %d \n",theta,rho ,pos, out[theta + rho*180]);
+		atomic_add(&out[theta + rho*180],1);
+		// printf("theta: %d, rho: %d, index: %d, wartosc po inkremenetacji %d \n",theta,rho ,pos, out[theta + rho*180]);
 	}
+		// printf("theta: %d, rho: %d, index: %d, wartosc po inkremenetacji %d \n",theta,rho ,pos, out[theta + rho*180]);
+
+}
+
+
+
+__kernel void to_display(__global int * in,  __global int* out, uint threshhold, uint width){
+
+	int pos = get_global_id(0);
+	// pos = rho*180+theta
+	// printf("pos %d\n",pos);
+	// if (pos==42897){
+	// 	printf("pos %d\n",pos);
+	// if(pos == 60840 || pos == 71190 || pos == 92970 || pos == 42660){
+	// 	printf("Jestem w pos %d\n",pos);
+	// 	printf("wartosc %d\n",in[pos]);
+	// }
+
+	if (in[pos]>180){
+		// printf("maximum %d\n",in[pos]);
+		int rho= pos / 180;
+		// printf("pos: %d, width: %d \n",pos,width);
+		int theta= pos % 180;
+		// printf("theta: %d, rho: %d, pos: %d \n",theta,rho,pos);
+		// printf("theta: %d, rho: %d \n",theta,rho);
+		out[2*pos] = theta;
+		out[2*pos+1] = rho;
+	}
+	else{
+		out[2*pos]=5000;
+		out[2*pos+1]=5000;
+	}
+	// }
 }
