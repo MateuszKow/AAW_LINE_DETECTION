@@ -45,84 +45,48 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 using namespace appsdk;
 
-/**
-* SobelFilterImage
-* Class implements OpenCL Sobel Filter sample using Images
-*/
-
-
-// class CLCommandArgsHough
-//     : public CLCommandArgs
-// {
-//     public: 
-//         unsigned int binarize_threshold;
-//         CLCommandArgsHough() : CLCommandArgs() 
-//         { 
-//             binarize_threshold = 128;
-//         }
-// };
-
-
 class SobelFilterImage
 {
         cl_double setupTime;                /**< time taken to setup OpenCL resources and building kernel */
         cl_double kernelTime;               /**< time taken to run kernel and read result back */
         cl_uchar4* inputImageData;          /**< Input bitmap data to device */
-        cl_uchar4* outputImageData;         /**< Output from device */
-        
+        cl_uchar4* outputImageData; 
+                                            /**< Output from device */
         cv::VideoCapture cap;
         cv::Mat frame;
         int deviceID;
         int apiID;
-        cv::Mat imageMat;        
-
-        cl::Context context;                            /**< CL context */
+        cl::Context context;                    
+                                                        /**< CL context */
         std::vector<cl::Device> devices;                /**< CL device list */
         std::vector<cl::Device> device;                 /**< CL device to be used */
         std::vector<cl::Platform> platforms;            /**< list of platforms */
         cl::Image2D inputImage2D;
         cl::Image2D erodeImage2D;                           /**< CL Input image2d */
-        cl::Image2D outputImage2D;
-        cl::Image2D sinusoid;
-        cl::Image3D outputImage3D;                       /**< CL Output image2d */
-        cl::Image2D acum_2D;
+        cl::Image2D outputImage2D;                   /**< CL Output image2d */
         cl::Buffer outputBuffer_rho;
         cl::Buffer rho_buffer;
-        cl::Buffer to_display_buffer_in;
         cl::Buffer to_display_buffer_out;
         cl::Buffer out_acumulator;
-        
         cl::CommandQueue commandQueue;                  /**< CL command queue */
-        cl::Program program;
-        // std::vector<cl_float>;                            /**< CL program  */
+        cl::Program program;                            /**< CL program  */
         cl::Kernel kernel;
         cl::Kernel kernel2;
         cl::Kernel hough;
         cl::Kernel hough_buffer;
         cl::Kernel to_display;
-        cl::Kernel hough_image3D;
         cl::Kernel accumulator_kernel;
         unsigned int bufferSize;                                   /**< CL kernel */
-
-        cl_uchar* verificationOutput;       /**< Output array for reference implementation */
-
-        SDKBitMap inputBitmap;   /**< Bitmap class object */
-        uchar4* pixelData;       /**< Pointer to image data */
-        cl_uint pixelSize;                  /**< Size of a pixel in BMP format> */
-        cl_uint width;                      /**< Width of image */
-        cl_uint height;                      /**< Width of image */
+        cl_uchar* verificationOutput;               /**< Output array for reference implementation */
+        SDKBitMap inputBitmap;                      /**< Bitmap class object */
+        uchar4* pixelData;                          /**< Pointer to image data */
+        cl_uint pixelSize;                          /**< Size of a pixel in BMP format> */
         cl_uint width_accumulator;
-        cl_uint height_accumulator;                          /**< Height of image */
-        
-        cl_uint binarize_threshold;         /**< Binarization threshold value */                     
-        cl_uint theta_resolution; 
-        cl_uint threshold;         /**< Resolution of theta */
-
+        cl_uint height_accumulator;                  
         cl_bool byteRWSupport;
         size_t kernelWorkGroupSize;
         size_t kernel2WorkGroupSize;   
         size_t houghWorkGroupSize;
-        size_t hough_image3DWorkGroupSize;
         size_t accumulator_kernelWorkGroupSize;
         size_t to_displayGroupSize;       /**< Group Size returned by kernel */
         size_t hough_bufferWorkGroupSize;
@@ -130,7 +94,6 @@ class SobelFilterImage
         size_t blockSizeY;                  /**< Work-group size in y-direction */
         int iterations;                     /**< Number of iterations for kernel execution */
         int imageSupport;
-        int* to_display_table;
 
         SDKTimer    *sampleTimer;      /**< SDKTimer object */
 
@@ -138,7 +101,14 @@ class SobelFilterImage
 
         CLCommandArgs   *sampleArgs;   /**< CLCommand argument class */
         int camera;
-
+        cv::Mat imageMat;
+        int* to_display_table;
+        cl_uint width;                      /**< Width of image */
+        cl_uint height;                      /**< Height of image */
+        cl_uint number_theta;
+        cl_uint binarize_threshold;
+        cl_uint theta_resolution;
+        cl_uint threshold_edge; 
         /**
         * Read bitmap image and allocate host memory
         * @param inputImageName name of the input file
@@ -254,7 +224,7 @@ class SobelFilterImage
         int verifyResults();
 
         // 
-        // 
+        // define functions for camera
         int initialize_camera();
         int read_camera();
         int convert_frame_to_image();

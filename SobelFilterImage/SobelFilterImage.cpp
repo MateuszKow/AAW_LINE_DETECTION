@@ -26,88 +26,29 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <iostream>
 #include <cstdlib>
 
-// int* processBuffer(int* tab, int HEIGHT, int WIDTH, int THETA) {
-//     int* tab_result = new int[(HEIGHT + WIDTH) * THETA];
-    
-    
-//     // Wypełnianie tablicy wynikowej zerami
-//     for (int i = 0; i < (HEIGHT + WIDTH) * THETA; i++) {
-//         tab_result[i] = 0;
-//     }
-//     // Tu można dodać kod realizujący wymaganą funkcjonalność
-//     for (int j = 0; j < HEIGHT; j++) { 
-//         for (int i = 0; i < WIDTH; i++) { 
-//             for (int t = 0; t < THETA; t++) {
-//                 // dla kolejnych wartosci sinusoidy obliczamy
-//                 if (tab[t  + i * THETA + j * THETA* WIDTH] == 5000){
-//                     continue;
-//                 }
-//                 // tab_result[t + (WIDTH+HEIGHT)/2 + tab[t  + i * THETA + j * THETA* WIDTH]] += 1;
-//                 // std::cout<<"rho: " <<tab[t  + i * THETA + j * THETA * WIDTH]<<std::endl;
-//                 // std::cout<<"index: " <<t  + i * THETA + j * THETA * WIDTH<<std::endl;
-//                 // std::cout<<"rho: " <<t  + i * THETA + j * THETA * WIDTH<<std::endl;
-//                 tab_result[(tab[t  + i * THETA + j * THETA * WIDTH] + (WIDTH+HEIGHT)/2)*THETA + t]+=1;
-//             } 
-//         } 
-//     }
-//     return tab_result;
-// }
-
 void ShowImage(cv::Mat image, int *tab, int HEIGHT, int WIDTH, int RHO) {
     
-    // cv::flip(image, image, 0);
-    
-    
-
+    // flip the image (OpenCV is origin at top left)
+    cv::flip(image, image, 0);
+        // for each line parameters (rho, theta) draw a line on binary image
         for (int i = 0; i < (int)((2*(HEIGHT + WIDTH) * RHO)); i++) {
-        if (tab[2 * i] != 5000) { //
-            // std::cout << tab[i*2] <<" "<<tab[i*2+1]<<std::endl;
-            int length = tab[2 * i+1] - (HEIGHT+WIDTH);   // odleglosc od srodka
-            int angle = (tab[2 * i])-90;  //minus kąt - minus na potrzebe opencv
+        if (tab[2 * i] != 5000) {
+            int length = tab[2 * i+1] - (HEIGHT+WIDTH);
+            int angle = (tab[2 * i])-90;
             if (angle == -180){
                 angle = 0;
             }
-            std::cout <<"length:"<< length <<"angle: "<<angle<<std::endl;
             float angleRad = angle * CV_PI / 180.0;
-
-            // Oblicz współrzędne końca linii
             float x0 = std::cos(angleRad) * length;
             float y0 = std::sin(angleRad) * length;
             cv::Point pt1(cvRound(x0 + 1000 * (-std::sin(angleRad))), cvRound(y0 + 1000 * (std::cos(angleRad))));
             cv::Point pt2(cvRound(x0 - 1000 * (-std::sin(angleRad))), cvRound(y0 - 1000 * (std::cos(angleRad))));
             cv::line(image, pt1, pt2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
-            // cv::Point center(image.cols / 2, image.rows / 2);
-            // cv::Point endpoint(
-            //     center.x + length * std::cos(angleRad),
-            //     center.y + length * std::sin(angleRad)
-            // );
-
-            // // Dodaj linie prostopadłą
-            // cv::Point perpendicularEndpoint1(
-            //     //endpoint.x + WIDTH * std::sin(angleRad), // WIDTH - dlugosc linii
-            //     //endpoint.y - HEIGHT * std::cos(angleRad) // HEIGHT - dlugosc linii
-            //     endpoint.x + 10000 * std::sin(angleRad), // WIDTH - dlugosc linii
-            //     endpoint.y - 10000 * std::cos(angleRad) // HEIGHT - dlugosc linii
-            // );
-            // cv::Point perpendicularEndpoint2(
-            //     //endpoint.x - WIDTH * std::sin(angleRad),// WIDTH - dlugosc linii
-            //     //endpoint.y + HEIGHT * std::cos(angleRad)// HEIGHT - dlugosc linii
-            //     endpoint.x - 10000 * std::sin(angleRad),// WIDTH - dlugosc linii
-            //     endpoint.y + 10000 * std::cos(angleRad)// HEIGHT - dlugosc linii
-            // );
-
-            // // Rysuj linie
-            // cv::line(image, endpoint, perpendicularEndpoint1, cv::Scalar(0, 0, 255), 2);
-            // cv::line(image, endpoint, perpendicularEndpoint2, cv::Scalar(0, 0, 255), 2);
         }
     }
-
-    cv::imshow("Obrazek", image);
-    cv::waitKey(10);
-
+    // write the output image
+    cv::imwrite("Output.bmp", image);
 }
-
-
 
 int
 SobelFilterImage::readInputImage(std::string inputImageName)
@@ -306,6 +247,7 @@ SobelFilterImage::setupCL()
     /*
     * Create and initialize memory objects
     */
+   // Create memory objects for input Image
     inputImage2D = cl::Image2D(context,
                                CL_MEM_READ_ONLY,
                                cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT8),
@@ -328,18 +270,7 @@ SobelFilterImage::setupCL()
                                 &err);
     CHECK_OPENCL_ERROR(err, "Image2D::Image2D() failed. (outputImage2D)");
 
-
-    // outputImage3D = cl::Image3D(context,
-    //                             CL_MEM_READ_WRITE,
-    //                             cl::ImageFormat(CL_RGBA, CL_FLOAT),
-    //                             width,
-    //                             height,
-    //                             180,
-    //                             0,
-    //                             0,
-    //                             &err);
-    // CHECK_OPENCL_ERROR(err, "Image3D::Image3D() failed. (outputImage2D)");
-
+    // Create memory objects for eroded Image
     erodeImage2D = cl::Image2D(context,
                                 CL_MEM_READ_WRITE,
                                 cl::ImageFormat(CL_RGBA,CL_UNSIGNED_INT8),
@@ -348,38 +279,11 @@ SobelFilterImage::setupCL()
                                 0,
                                 0,
                                 &err);
+    CHECK_OPENCL_ERROR(err, "Image2D::Image2D() failed. (erodeImage2D)");
 
-    CHECK_OPENCL_ERROR(err, "Image2D::Image2D() failed. (outputImage2D)");
-
-
-    // float * ptr_rho_buffer = new float[180*width*height];
-    // float *ptr_rho_buffer= (float*) malloc(180*width*height);
-    // buffer_theta_rho_to_display,,=180*width*height;
-    // buffer_theta_rho_to_display=180*(width+height);
-    // outputBuffer_rho = cl::Buffer(context, CL_MEM_READ_WRITE, buffer_theta_rho_to_display * sizeof(float));
-    // outputBuffer_rho = cl::Buffer(context, CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR , (180*width*height) * sizeof(float), (void *) ptr_rho_buffer, &err);
-
-
-
-    rho_buffer = cl::Buffer(context, CL_MEM_READ_WRITE, 180*width*height * sizeof(int));
-    // out_acumulator = cl::Buffer(context, CL_MEM_READ_WRITE, 180*(width+height) * sizeof(int));
-    out_acumulator = cl::Buffer(context, CL_MEM_READ_WRITE, 2*180*(width+height) * sizeof(int));
-    to_display_buffer_out = cl::Buffer(context, CL_MEM_READ_WRITE, 2*2*180*(width+height) * sizeof(int));
-    // to_display_buffer_in = cl::Buffer(context, CL_MEM_READ_WRITE, 180*(width+height) * sizeof(int));
-
-    // CHECK_OPENCL_ERROR(err, "Buffor failed. (outputImage2D)");
-
-
-    // sinusoid = cl::Image2D(context,
-    //                             CL_MEM_READ_WRITE,
-    //                             cl::ImageFormat(CL_RGBA,CL_UNSIGNED_INT8),
-    //                             182,
-    //                             width+height,
-    //                             0,
-    //                             0,
-    //                             &err);
-
-    // CHECK_OPENCL_ERROR(err, "Image2D::Image2D() failed. (outputImage2D)");
+    rho_buffer = cl::Buffer(context, CL_MEM_READ_WRITE, number_theta*width*height * sizeof(int));
+    out_acumulator = cl::Buffer(context, CL_MEM_READ_WRITE, 2*number_theta*(width+height) * sizeof(int));
+    to_display_buffer_out = cl::Buffer(context, CL_MEM_READ_WRITE, 2*2*number_theta*(width+height) * sizeof(int));
 
     device.push_back(devices[sampleArgs->deviceId]);
 
@@ -469,13 +373,8 @@ SobelFilterImage::setupCL()
     CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
     hough_buffer = cl::Kernel(program, "hough_transform_buffer",  &err);
     CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
-
     accumulator_kernel = cl::Kernel(program, "accumulator",  &err);
     CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
-
-    // hough_image3D = cl::Kernel(program, "hough_transform_image3D",  &err);
-    // CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
-
     to_display = cl::Kernel(program, "to_display",  &err);
     CHECK_OPENCL_ERROR(err, "Kernel::Kernel() failed.");
 
@@ -488,21 +387,21 @@ SobelFilterImage::setupCL()
                           (devices[sampleArgs->deviceId], &err);
     CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
 
-    // hough_image3DWorkGroupSize = hough_image3D.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>
-    //                       (devices[sampleArgs->deviceId], &err);
-    // CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
-
     accumulator_kernelWorkGroupSize = accumulator_kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>
                           (devices[sampleArgs->deviceId], &err);
+    CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
 
     hough_bufferWorkGroupSize = hough_buffer.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>
                           (devices[sampleArgs->deviceId], &err);
+                          
     CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
 
     to_displayGroupSize = to_display.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>
                           (devices[sampleArgs->deviceId], &err);
     CHECK_OPENCL_ERROR(err, "Kernel::getWorkGroupInfo()  failed.");
 
+
+    // Check local group sizes for all kernels
     if((blockSizeX * blockSizeY) > kernelWorkGroupSize)
     {
         if(!sampleArgs->quiet)
@@ -540,27 +439,6 @@ SobelFilterImage::setupCL()
             blockSizeY = 1;
         }
     }
-
-    // if((blockSizeX * blockSizeY) > hough_image3DWorkGroupSize)
-    // {
-    //     if(!sampleArgs->quiet)
-    //     {
-    //         std::cout << "Out of Resources!" << std::endl;
-    //         std::cout << "Group Size specified : "
-    //                   << blockSizeX * blockSizeY << std::endl;
-    //         std::cout << "Max Group Size supported on the kernel : "
-    //                   << hough_image3DWorkGroupSize << std::endl;
-    //         std::cout << "Falling back to " << hough_image3DWorkGroupSize << std::endl;
-    //     }
-
-    //     if(blockSizeX > hough_image3DWorkGroupSize)
-    //     {
-    //         blockSizeX = hough_image3DWorkGroupSize;
-    //         blockSizeY = 1;
-    //     }
-    // }
-
-
 
     if((blockSizeX * blockSizeY) > hough_bufferWorkGroupSize)
     {
@@ -639,8 +517,10 @@ SobelFilterImage::runCLKernels()
     region[1] = height;
     region[2] = 1;
 
-    // int* accumulator = new int[180*width*height];
-
+    // Set angle_resolution due to the number of theta
+    theta_resolution = (uint) 180/number_theta;
+    
+    // Write input data to image
     cl::Event writeEvt2;
     status = commandQueue.enqueueWriteImage(
                  inputImage2D,
@@ -669,24 +549,23 @@ SobelFilterImage::runCLKernels()
 
     }
 
-
-    int* zera = new int[2*180*(width+height)];
-    memset(zera, 0, 2*180*(width+height)*sizeof(int));
+    // Write zeros to accumulator
+    int* zera = new int[2*number_theta*(width+height)];
+    memset(zera, 0, 2*number_theta*(width+height)*sizeof(int));
 
     status = commandQueue.enqueueWriteBuffer(
                  out_acumulator, 
                  CL_TRUE, 
                  0, 
-                 2*180*(width+height) * sizeof(int), 
+                 2*number_theta*(width+height) * sizeof(int), 
                  zera);
     status = commandQueue.finish();
     CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadBuffer failed.");
-    
-    // Set appropriate arguments to the kernel
-    // input buffer image
 
-    binarize_threshold = 100;
-    theta_resolution = 1;
+    delete zera;
+
+    // Set appropriate arguments to the kernels
+    
 
     status = kernel.setArg(0, inputImage2D);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (inputImageBuffer)");
@@ -697,14 +576,11 @@ SobelFilterImage::runCLKernels()
     status = kernel.setArg(2, binarize_threshold);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (binarize_threshold)");
 
-
     status = kernel2.setArg(0, erodeImage2D);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (erodeImage2D)");
 
     status = kernel2.setArg(1, outputImage2D);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (outputImageBuffer)");
-
-
 
     status = hough_buffer.setArg(0, outputImage2D);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (outputImage2D)");
@@ -721,27 +597,11 @@ SobelFilterImage::runCLKernels()
     status = hough_buffer.setArg(4, height);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (height)");
 
-
-
     status = accumulator_kernel.setArg(0, rho_buffer);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (rho_buffer)");
 
     status = accumulator_kernel.setArg(1, out_acumulator);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (out_acumulator)");
-
-    // status = hough_image3D.setArg(0, outputImage2D);
-    // CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (erodeImage2D)");
-
-    // status = hough_image3D.setArg(1, outputImage3D);
-    // CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (outputImage3D)");
-
-    // status = hough_image3D.setArg(2, theta_resolution);
-    // CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (outputImageBuffer)");
-
-
-    threshold = 180;
-
-
 
     status = to_display.setArg(0, out_acumulator);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (out_acumulator)");
@@ -749,29 +609,13 @@ SobelFilterImage::runCLKernels()
     status = to_display.setArg(1, to_display_buffer_out);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (to_display_buffer_out)");
 
-    status = to_display.setArg(2, threshold);
+    status = to_display.setArg(2, threshold_edge);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (threshhold)");
 
-    status = to_display.setArg(3, 180);
+    status = to_display.setArg(3, number_theta);
     CHECK_OPENCL_ERROR(status, "Kernel::setArg() failed. (width)");
 
-
-	// /*Step 9: Sets Kernel arguments.*/
-	// status = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&inputBuffer);
-	// status = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&outputBuffer);
-	
-	/*Step 10: Running the kernel.*/
-	// size_t global_work_size[1] = {strlength};
-	// status = clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL, global_work_size, NULL, 0, NULL, NULL);
-
-	// /*Step 11: Read the cout put back to host memory.*/
-	// status = clEnqueueReadBuffer(commandQueue, outputBuffer, CL_TRUE, 0, strlength * sizeof(char), output, 0, NULL, NULL);
-	
-	// output[strlength] = '\0';	//Add the terminal character to the end of output.
-	// cout << "\noutput string:" << endl;
-	// cout << output << endl;
-
-
+   
     /*
     * Enqueue a kernel run call.
     */
@@ -783,7 +627,7 @@ SobelFilterImage::runCLKernels()
                  kernel,
                  cl::NullRange,
                  globalThreads,
-                 localThreads,
+                 cl::NullRange,
                  0,
                  &ndrEvt);
     CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueNDRangeKernel() failed.");
@@ -806,7 +650,7 @@ SobelFilterImage::runCLKernels()
                  kernel2,
                  cl::NullRange,
                  globalThreads,
-                 localThreads,
+                 cl::NullRange,
                  0,
                  &ndrEvt2);
     CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueNDRangeKernel() failed.");
@@ -823,7 +667,6 @@ SobelFilterImage::runCLKernels()
         CHECK_OPENCL_ERROR(status,
                            "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
     }
-
     cl::Event ndrEvt4;
     status = commandQueue.enqueueNDRangeKernel(
                  hough_buffer,
@@ -848,9 +691,8 @@ SobelFilterImage::runCLKernels()
     }
 
 
-    cl::NDRange globalThreads2(height*width*180);
+    cl::NDRange globalThreads2(height*width*number_theta);
     cl::NDRange localThreads2(1);
-
 
     cl::Event ndrEvt10;
     status = commandQueue.enqueueNDRangeKernel(
@@ -875,7 +717,7 @@ SobelFilterImage::runCLKernels()
                         "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
     }
 
-    cl::NDRange globalThreads3(2*180*(width+height));
+    cl::NDRange globalThreads3(2*number_theta*(width+height));
     cl::NDRange localThreads3(1);
 
     cl::Event ndrEvt5;
@@ -900,188 +742,11 @@ SobelFilterImage::runCLKernels()
                            "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
     }
 
-
-    // cl::Event ndrEvt3;
-    // status = commandQueue.enqueueNDRangeKernel(
-    //             hough_image3D,
-    //             cl::NullRange,
-    //             globalThreads,
-    //             localThreads,
-    //             0,
-    //             &ndrEvt3);
-    // CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueNDRangeKernel() failed.");
-
-    // status = commandQueue.finish();
-    // CHECK_OPENCL_ERROR(status, "cl::CommandQueue.finish failed.");
-
-    // eventStatus = CL_QUEUED;
-    // while(eventStatus != CL_COMPLETE)
-    // {
-    //     status = ndrEvt3.getInfo<cl_int>(
-    //                 CL_EVENT_COMMAND_EXECUTION_STATUS,
-    //                 &eventStatus);
-    //     CHECK_OPENCL_ERROR(status,
-    //                     "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
-    // }
-
-    // cl::Event ndrEvt10;
-    // status = commandQueue.enqueueNDRangeKernel(
-    //             accumulator_kernel,
-    //             cl::NullRange,
-    //             globalThreads,
-    //             localThreads,
-    //             0,
-    //             &ndrEvt10);
-    // CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueNDRangeKernel() failed.");
-
-    // status = commandQueue.finish();
-    // CHECK_OPENCL_ERROR(status, "cl::CommandQueue.finish failed.");
-
-    // eventStatus = CL_QUEUED;
-    // while(eventStatus != CL_COMPLETE)
-    // {
-    //     status = ndrEvt3.getInfo<cl_int>(
-    //                 CL_EVENT_COMMAND_EXECUTION_STATUS,
-    //                 &eventStatus);
-    //     CHECK_OPENCL_ERROR(status,
-    //                     "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
-    // }
-
-
-
-    // cv::Mat imageMat;
-    // imageMat.create(height, width, CV_8UC4);
-    
-    // std::vector<float> imageData(width * height * 180);
-
-    // region[2]=180;
-
-    // cl::Event readEvt;
-
-    // status = commandQueue.enqueueReadImage(
-    //              outputImage3D,
-    //              CL_TRUE,
-    //              origin,
-    //              region,
-    //              0,
-    //              0,
-    //              imageData.data(),
-    //              NULL,
-    //              &readEvt);
-    // status = commandQueue.finish();
-    // CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadImage failed.");
-
-    // for (float value : imageData) {
-    //     if (value!=5000.0)
-    //     std::cout << value << " ";
-    // }
-
-
-
-    // region[2]=1;
-
-
-
-
-    // cl::Event ndrEvt3;
-    // status = commandQueue.enqueueNDRangeKernel(
-    //              hough,
-    //              cl::NullRange,
-    //              globalThreads,
-    //              localThreads,
-    //              0,
-    //              &ndrEvt3);
-    // CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueNDRangeKernel() failed.");
-
-    // status = commandQueue.finish();
-    // CHECK_OPENCL_ERROR(status, "cl::CommandQueue.finish failed.");
-
-    // eventStatus = CL_QUEUED;
-    // while(eventStatus != CL_COMPLETE)
-    // {
-    //     status = ndrEvt3.getInfo<cl_int>(
-    //                  CL_EVENT_COMMAND_EXECUTION_STATUS,
-    //                  &eventStatus);
-    //     CHECK_OPENCL_ERROR(status,
-    //                        "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
-    // }
-
-    int* accumulator_data = new int[180*width*height];
-
-    cl::Event ndrEvt8;
-
-    status = commandQueue.enqueueReadBuffer(
-                 rho_buffer,
-                 CL_TRUE,
-                 0,
-                 180*width*height * sizeof(int),
-                 accumulator_data,
-                 NULL,
-                 &ndrEvt8);
-    CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadBuffer failed.");
-    status = commandQueue.finish();
-    CHECK_OPENCL_ERROR(status, "cl::CommandQueue.finish failed.");
-
-    eventStatus = CL_QUEUED;
-    while(eventStatus != CL_COMPLETE)
-    {
-        status = ndrEvt8.getInfo<cl_int>(
-                     CL_EVENT_COMMAND_EXECUTION_STATUS,
-                     &eventStatus);
-        CHECK_OPENCL_ERROR(status,
-                           "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
-    }
-
-    // for(int i=0; i<180*width*height; i++){
-    //     if (accumulator_data[i]!=5000 && (i/180)%width==35 && i/(180*width)==88)
-    //     {
-    //         std::cout<<"x: "<<(i/180)%width<<"y: "<< i/(180*width) <<"rho:" <<accumulator_data[i]<<std::endl;
-    //     }
-    // }
-
-    // cl::Event ndrEvt67;
-
-    // int* accumulator_data = new int[180*(width+height)];
-
-    // status = commandQueue.enqueueReadBuffer(
-    //              out_acumulator,
-    //              CL_TRUE,
-    //              0,
-    //              180*(width+height) * sizeof(int),
-    //              accumulator_data,
-    //              NULL,
-    //              &ndrEvt67);
-    // CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadBuffer failed.");
-    // status = commandQueue.finish();
-    // CHECK_OPENCL_ERROR(status, "cl::CommandQueue.finish failed.");
-
-    // eventStatus = CL_QUEUED;
-    // while(eventStatus != CL_COMPLETE)
-    // {
-    //     status = ndrEvt67.getInfo<cl_int>(
-    //                  CL_EVENT_COMMAND_EXECUTION_STATUS,
-    //                  &eventStatus);
-    //     CHECK_OPENCL_ERROR(status,
-    //                        "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
-    // }
-
-
-    // for (int i=0; i<180*(width+height); i++){
-    //         std::cout<<accumulator_data[i]<<std::endl;
-    // }
-   
-
     // Enqueue Read Image
     origin[0] = 0;
     origin[1] = 0;
     origin[2] = 0;
 
-    // region[0] = 182;
-    // region[1] = height+width;
-    // region[2] = 1;
-
-    // Enqueue readBuffer
-    // cl::Event readEvt;
 
     region[0] = width;
     region[1] = height;
@@ -1112,144 +777,24 @@ SobelFilterImage::runCLKernels()
                            "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
 
     }
-
-
-    // region[2] = 180;
-    // float* outputImageData2 = new float[180*width*height];
-
-    // cl::Event readEvt2;
-    // status = commandQueue.enqueueReadImage(
-    //              outputImage3D,
-    //              CL_TRUE,
-    //              origin,
-    //              region,
-    //              0,
-    //              0,
-    //              outputImageData2,
-    //              NULL,
-    //              &readEvt2);
-    // CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadImage failed.");
-    // status = commandQueue.finish();
-    // CHECK_OPENCL_ERROR(status, "cl::CommandQueue.finish failed.");
-
-    // eventStatus = CL_QUEUED;
-    // while(eventStatus != CL_COMPLETE)
-    // {
-    //     status = readEvt.getInfo<cl_int>(
-    //                  CL_EVENT_COMMAND_EXECUTION_STATUS,
-    //                  &eventStatus);
-    //     CHECK_OPENCL_ERROR(status,
-    //                        "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
-
-    // }
-    
-    
-
-
-    // int niezerowe = 0;
-    // int zerowe = 0;
-    // int wszystkie = 0;
-    // for (int i=0; i<180*width*height; i++){
-    //     if (accumulator_data[i]!=5000){
-    //         // std::cout<<accumulator_data[i]<<std::endl;
-    //         niezerowe++;
-    //     }
-    //     else{
-    //         zerowe++;}
-    //     wszystkie++;
-    // }
-    // std::cout<<"niezerowe:" <<niezerowe<<std::endl;
-    // std::cout<<"zerowe:" <<zerowe<<std::endl;
-    // std::cout<<"wszystkie:" <<wszystkie<<std::endl;
-    // accumulator_data[i]!=5000 &&
-
-    // accumulator = processBuffer(accumulator_data, height, width, 180);
-    // status = commandQueue.enqueueWriteBuffer(
-    //              to_display_buffer_in, 
-    //              CL_TRUE, 
-    //              0, 
-    //              180*(width+height) * sizeof(int), 
-    //              accumulator);
-    // status = commandQueue.finish();
-    // CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadBuffer failed.");
-    
-
-
-    
-
-    to_display_table = new int[2*2*180*(width+height)];
+    //read rhos and thetas from buffer
+    to_display_table = new int[2*2*number_theta*(width+height)];
 
     status = commandQueue.enqueueReadBuffer(
                  to_display_buffer_out,
                  CL_TRUE,
                  0,
-                 2*2*180*(width+height) * sizeof(int),
+                 2*2*number_theta*(width+height) * sizeof(int),
                  to_display_table,
                  NULL,
                  &readEvt);
     status = commandQueue.finish();
     CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadBuffer failed.");
 
-    
-
-    int* out_acumulator_observer = new int[2*180*(width+height)];
-
-    status = commandQueue.enqueueReadBuffer(
-                 out_acumulator,
-                 CL_TRUE,
-                 0,
-                 2*180*(width+height) * sizeof(int),
-                 out_acumulator_observer,
-                 NULL,
-                 &readEvt);
-    status = commandQueue.finish();
-    CHECK_OPENCL_ERROR(status, "CommandQueue::enqueueReadBuffer failed.");
-
-    
-    // for (int i=0; i<2*180*(width+height); i++){
-    //     if (out_acumulator_observer[i]!=0){
-    //     std::cout<<"rho: "<<out_acumulator_observer[i]<<" i "<<i <<" theta: "<< i%180<<std::endl;
-    // }
-    // }
-
-
-    int max = 0;
-    int max_index_theta = 0;
-    int max_index_rho = 0;
-    int max_index = 0;
-
-    cv::Mat I(2*(width+height), 180, CV_8UC1);
-    for (int rho =0; rho < 2*(width+height);rho++ ){
-        for(int theta = 0; theta <180; theta ++){
-            int index= rho*180+theta;
-            I.at<uint8_t>(rho, theta)= out_acumulator_observer[index];
-            if (out_acumulator_observer[index]>max){
-                max = out_acumulator_observer[index];
-                max_index_rho = rho;
-                max_index_theta = theta;
-                max_index = index;
-            }
-        }
-    }
-    // std::cout<<"chuj"<<std::endl;
-    // std::cout<<"max: "<<max<<std::endl;
-    // std::cout<<"max_index_rho: "<<max_index_rho<<" max_index_theta "<<max_index_theta <<std::endl;
-    // std::cout<<"max_index: "<<max_index<<std::endl;
-    // cv::imshow("Hough", I);
-    // cv::waitKey(0);
-
-
-    // for (int i=0; i<2*2*180*(width+height); i++){
-    //     if (to_display_table[i]!=5000){
-    //     std::cout<<to_display_table[i]<<std::endl;
-    //     std::cout<<"i: "<<i<<std::endl;
-    //     }
-    // }
-    
-    // status = commandQueue.finish();
+    // create an image object
     imageMat.create(height, width, CV_8UC4);
 
-
+    // Enqueue Read Image
     status = commandQueue.enqueueReadImage(
                  outputImage2D,
                  CL_TRUE,
@@ -1275,9 +820,6 @@ SobelFilterImage::runCLKernels()
                            "cl:Event.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS) failed.");
 
     }
-    // ShowImage(imageMat, to_display_table, height, width, 180);
-
-
     return SDK_SUCCESS;
 }
 
@@ -1302,16 +844,14 @@ SobelFilterImage::initialize()
     iteration_option->_type = CA_ARG_INT;
     iteration_option->_value = &iterations;
     sampleArgs->AddOption(iteration_option);
-    camera = 1;
     delete iteration_option;
     return SDK_SUCCESS;
 }
 
 int SobelFilterImage::read_camera()
 {
-    // wait for a new frame from camera and store it into 'frame'
+    // grab new frame from camera
     cap.read(frame);
-    // check if we succeeded
     if (frame.empty()) {
         std::cerr << "ERROR! blank frame grabbed\n"<<std::endl<<std::flush;
         return SDK_FAILURE;
@@ -1321,11 +861,9 @@ int SobelFilterImage::read_camera()
 
 int SobelFilterImage::initialize_camera()
 {
-    // open the default camera using default API
-    // cap.open(0);
-    // OR advance usage: select any API backend
-    deviceID = 0;             // 0 = open default camera
-    apiID = cv::CAP_ANY;      // 0 = autodetect default API
+    // open the default camera, use something different from 0 otherwise;
+    deviceID = 0;
+    apiID = cv::CAP_ANY;
     // open selected camera using selected API
     cap.open(deviceID, apiID);
     // check if we succeeded
@@ -1333,20 +871,13 @@ int SobelFilterImage::initialize_camera()
         std::cerr << "ERROR! Unable to open camera\n"<<std::flush;
             return SDK_FAILURE;
     }
-    
     if (read_camera() != SDK_SUCCESS)
     {
         return SDK_FAILURE;
     }
-
+    // get the frame size
     width = frame.cols;
     height = frame.rows;
-
-    //create image2d
-
-    // write the initial frame output image to bitmap file, to create .bmp info for opencl image
-    // cv::imwrite("from_camera.bmp", frame);
-    cv::imwrite(INPUT_IMAGE, frame);
     
     return SDK_SUCCESS;
 }
@@ -1607,18 +1138,18 @@ SobelFilterImage::printStats()
 
 int SobelFilterImage::camera_show()
 {
-for (int i = 0; i < (int)((2*(HEIGHT + WIDTH) * RHO)); i++) {
-        if (tab[2 * i] != 5000) { //
-            // std::cout << tab[i*2] <<" "<<tab[i*2+1]<<std::endl;
-            int length = tab[2 * i+1] - (HEIGHT+WIDTH);   // odleglosc od srodka
-            int angle = (tab[2 * i])-90;  //minus kąt - minus na potrzebe opencv
+    // flip image
+    cv::flip(imageMat, imageMat, 0);
+ 
+    // Draw lines on the image
+for (int i = 0; i < (int)((2*(height + width) * number_theta)); i++) {
+        if (to_display_table[2 * i] != 5000) { //
+            int length = to_display_table[2 * i+1] - (height+width);   
+            int angle = (to_display_table[2 * i])-90;  
             if (angle == -180){
                 angle = 0;
             }
-            std::cout <<"length:"<< length <<"angle: "<<angle<<std::endl;
             float angleRad = angle * CV_PI / 180.0;
-
-            // Oblicz współrzędne końca linii
             float x0 = std::cos(angleRad) * length;
             float y0 = std::sin(angleRad) * length;
             cv::Point pt1(cvRound(x0 + 1000 * (-std::sin(angleRad))), cvRound(y0 + 1000 * (std::cos(angleRad))));
@@ -1626,47 +1157,48 @@ for (int i = 0; i < (int)((2*(HEIGHT + WIDTH) * RHO)); i++) {
             cv::line(imageMat, pt1, pt2, cv::Scalar(255, 0, 255), 1, cv::LINE_AA);
         }
     }
-
+    // flip image and show it
+    cv::flip(imageMat, imageMat, 0);
     cv::imshow("Obrazek", imageMat);
-    cv::waitKey(10);
-
-
-    cv::imshow("Live", frame);
-    
-    if (cv::waitKey(10) >= 0)
+    int key=cv::waitKey(1);
+    // return false - program will quit
+    if (key == 27|| key == 'q'){
         return false;
+        std::cout<<"esc"<<std::endl;
+    }
+        
+
     return true;
 }
 
+
 int SobelFilterImage::convert_frame_to_image()
 {
-    // convert frame to inputImage2D
-    for (int i = 0; i < width * height; i++)
+    // write frame to inputImageData
+    for (int i = 0; i < width*height; i++)
     {
-        inputImageData[i].s[0] = frame.data[i * 3];
-        inputImageData[i].s[1] = frame.data[i * 3 + 1];
-        inputImageData[i].s[2] = frame.data[i * 3 + 2];
-        inputImageData[i].s[3] = 0;
+        inputImageData[i].s[0]=frame.data[i*3];
+        inputImageData[i].s[1]=frame.data[i*3+1];
+        inputImageData[i].s[2]=frame.data[i*3+2];
+        inputImageData[i].s[3]=0;
     }
-
-    // copy image to padded memory
-	// for(cl_uint i = filterRadius/2; i < height + filterRadius/2; i++)
-	// {
-	// 	for(cl_uint j = filterRadius-1; j < width + filterRadius-1; j++)
-	// 	{
-	// 		paddedInputImage2D[i * paddedWidth + j] = inputImage2D[(i - filterRadius/2) * width + (j - filterRadius/2)];		
-	// 	}
-	// }
 
     return SDK_SUCCESS;
 }
-
 
 int
 main(int argc, char * argv[])
 {
     SobelFilterImage clSobelFilterImage;
-
+    // parameters to be initialized
+    std::cout<<"Czy chcesz wlaczyc kamere? 1-tak 0-nie"<<std::endl;
+    std::cin>>clSobelFilterImage.camera;
+    std::cout<<"Podaj wartosc progu binaryzacji"<<std::endl;
+    std::cin>>clSobelFilterImage.binarize_threshold;
+    std::cout<<"Podaj liczbe minimalnych pikseli tworzacych krawedz"<<std::endl;
+    std::cin>>clSobelFilterImage.threshold_edge;
+    std::cout<<"Podaj liczbe katow na ktore bedzie dzielona przestrzen"<<std::endl;
+    std::cin>>clSobelFilterImage.number_theta;
     
     if(clSobelFilterImage.initialize() != SDK_SUCCESS)
     {
@@ -1690,33 +1222,29 @@ main(int argc, char * argv[])
             int check_status = clSobelFilterImage.initialize_camera();
             CHECK_ERROR(check_status, SDK_SUCCESS, "Initializing camera Failed!\n");
         }
-
-
         int status = clSobelFilterImage.setup();
         if(status != SDK_SUCCESS)
         {
             return status;
         }
+        // Run
+        else{
         if(clSobelFilterImage.camera){
+            std::cout<<"cos";
             status = true;
-            while(1){
+            while(status==true){
             status = clSobelFilterImage.read_camera();
             CHECK_ERROR(status, SDK_SUCCESS, "reading camera Failed");
 
             status = clSobelFilterImage.convert_frame_to_image();
-            // CHECK_ERROR(status, SDK_SUCCESS, "converting frame to image Failed");
-
             status = clSobelFilterImage.run();
             status = clSobelFilterImage.camera_show();
             }
         }
-
-
-        // Run
         else{
-        if(clSobelFilterImage.run() != SDK_SUCCESS)
-        {
-            return SDK_FAILURE;
+            clSobelFilterImage.run();
+            ShowImage(clSobelFilterImage.imageMat, clSobelFilterImage.to_display_table, clSobelFilterImage.height, clSobelFilterImage.width, clSobelFilterImage.number_theta);
+
         }
         }
         // VerifyResults
@@ -1736,6 +1264,3 @@ main(int argc, char * argv[])
 
     return SDK_SUCCESS;
 }
-
-
-
